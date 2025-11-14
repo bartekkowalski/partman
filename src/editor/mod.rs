@@ -71,7 +71,7 @@ pub fn edit_file(editor: &str, file: &Path) -> Result<Option<Form>> {
 
 pub fn process_form(edited_form: Form, config: &Config) -> Result<()> {
     let mut new_part: Part = edited_form.into();
-    let mut parts = data::load_all_parts(&config.cat, &config.db_file_path)?;
+    let mut parts = data::load_all_parts(&config.cat, &config.csv_dir_path)?;
     let code = &config.cat
         .get(&new_part.category)
         .ok_or("Error: Part category incorrect")?

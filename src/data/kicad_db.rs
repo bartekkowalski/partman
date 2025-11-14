@@ -29,7 +29,7 @@ pub fn build_kicad_db(kicad_db_path: &Path, parts: Vec<Part>, categories: &HashM
         let create_sql = format!(
             "CREATE TABLE {} (
                 id TEXT PRIMARY KEY,
-                Category TEXT,
+                Subcategory TEXT,
                 Description TEXT,
                 Value TEXT,
                 Manufacturer TEXT,
@@ -56,10 +56,10 @@ pub fn build_kicad_db(kicad_db_path: &Path, parts: Vec<Part>, categories: &HashM
         for category_name in categories.keys() {
             let insert_sql = format!(
                 "INSERT INTO {} (\r
-                    id, Description, Value, Manufacturer, MPN, Package,\r
+                    id, Subcategory, Description, Value, Manufacturer, MPN, Package,\r
                     Supplier1, SPN1, Supplier2, SPN2,\r
                     Symbol, Footprint, Datasheet, Status, Notes\r
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                 category_name
             );
             insert_statements.insert(category_name, tx.prepare(&insert_sql)?);
@@ -68,6 +68,7 @@ pub fn build_kicad_db(kicad_db_path: &Path, parts: Vec<Part>, categories: &HashM
             if let Some(stmt) = insert_statements.get_mut(&part.category) {
                 stmt.execute(params![
                     part.id.as_deref().unwrap_or(""),
+                    part.subcategory,
                     part.description,
                     part.value,
                     part.manufacturer.unwrap_or_default(),

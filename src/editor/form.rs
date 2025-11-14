@@ -20,7 +20,7 @@ impl Default for About {
         Self {
             id: None,
             category: String::from("resistor"),
-            subcategory: String::from("Chip"),
+            subcategory: String::from("chip"),
             description: String::from("RES 120K OHM 1% 1/16W 0402"),
             value: String::from("120K"),
         }
