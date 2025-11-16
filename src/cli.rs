@@ -1,7 +1,7 @@
 use std::{ffi::OsStr, fs, path::Path};
 
 use crate::{
-    Result, api::digikey, config::Config, data, editor::{Form, edit, edit_file, process_form}
+    Result, api::digikey, config::{Config, Secrets}, data, editor::{Form, edit, edit_file, process_form}
 };
 
 use clap::{Parser, Subcommand};
@@ -49,16 +49,21 @@ pub struct AddCmd {
 #[derive(Parser, Debug)]
 pub struct ResumeCmd {}
 
-// TODO: SPlit digikey API keys into separate file, create file on init, and reference in partman.toml
 impl InitCmd {
     pub fn run(&self) -> Result<()> {
         let config_path = Path::new("partman.toml");
         if config_path.exists() {
             return Err("partman.toml already exists in this directory".into());
         }
-
         fs::write(config_path, Config::DEFAULT_CONFIG)?;
         println!("Created default partman.toml");
+
+        let secrets_path = Path::new("secrets.toml");
+        if secrets_path.exists() {
+            return Err("secrets.toml already exists in this directory".into());
+        }
+        fs::write(secrets_path, Secrets::DEFAULT_SECRETS)?;
+        println!("Created default secrets.toml");
 
         Ok(())
     }
@@ -75,11 +80,14 @@ impl BuildCmd {
 impl AddCmd {
     pub fn run(&self, config: &Config) -> Result<()> {
        
-        let id = &config.digikey.as_ref().ok_or("digikey config missing")?.client_id;
-        let secret = &config.digikey.as_ref().ok_or("digikey config missing")?.client_secret;
         let mut form = match &self.digikey {
             None => Form::default(),
-            Some(mpn) => digikey::get_product(id, secret, mpn)?.into(),
+            Some(mpn) => {
+                // TODO: HAndle the case that secrets are empty strings!
+                let id = &config.digikey.as_ref().ok_or("digikey config missing")?.client_id;
+                let secret = &config.digikey.as_ref().ok_or("digikey config missing")?.client_secret;
+                digikey::get_product(id, secret, mpn)?.into()
+            },
         };
         form.categories = Some(config.cat.clone());
         let rslt = edit(&config.editor_cmd, &config.history_dir_path, form)?;

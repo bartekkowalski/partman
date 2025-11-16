@@ -2,10 +2,27 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::PathBuf};
 use crate::Result;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Digikey {
     pub client_id: String,
     pub client_secret: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Secrets {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digikey: Option<Digikey>,
+}
+
+impl Secrets {
+    pub const DEFAULT_SECRETS: &str = r#"
+# Partman API Keys File
+
+# Digikey API credentials, get them from https://developer.digikey.com/
+[digikey]
+client_id = ""
+client_secret = ""
+"#;
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -21,13 +38,14 @@ pub struct Config {
     pub db_file_path: PathBuf,
     pub csv_dir_path: PathBuf,
     pub history_dir_path: PathBuf,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip)]
     pub digikey: Option<Digikey>,
     pub cat: HashMap<String, Cat>
 }
 
 impl Config {
     const CONFIG_NAME: &str = "partman.toml";
+    const SECRETS_NAME: &str = "secrets.toml";
 
     pub fn find_and_load() -> Result<Self> {
         let mut current = std::env::current_dir()?;
@@ -52,20 +70,30 @@ impl Config {
         let conf_str = fs::read_to_string(&config_path)?;
         let mut config: Self = toml::from_str(&conf_str)?;
 
+        let secrets_path = root.join(Self::SECRETS_NAME);
+        if secrets_path.exists() {
+            let secrets_str = fs::read_to_string(&secrets_path)?;
+            if !secrets_str.trim().is_empty() {
+                match toml::from_str::<Secrets>(&secrets_str) {
+                    Ok(secrets) => config.digikey = secrets.digikey,
+                    Err(e) => return Err(format!("Failed to parse secrets.toml: {}", e).into()),
+                }
+            }
+        }
         
         // Allow for paths relative to partman.toml
         if config.csv_dir_path.is_relative() {
-            config.csv_dir_path = root.join(config.csv_dir_path);
+            config.csv_dir_path = root.join(config.csv_dir_path.clone());
         };
 
         // Allow for paths relative to partman.toml
         if config.db_file_path.is_relative() {
-            config.db_file_path = root.join(config.db_file_path);
+            config.db_file_path = root.join(config.db_file_path.clone());
         };
 
         // Allow for paths relative to partman.toml
         if config.history_dir_path.is_relative() {
-            config.history_dir_path = root.join(config.history_dir_path);
+            config.history_dir_path = root.join(config.history_dir_path.clone());
         };
 
 
@@ -90,12 +118,6 @@ csv_dir_path = "csv/"
 # Path to the directory where partman will store temporary files
 # Can be absolute or relative to partman.toml
 history_dir_path = "history/"
-
-# Digikey API credentials, get them from https://developer.digikey.com/
-# You can remove this section if you don't want to use the digikey integration
-#[digikey]
-#client_id = "..."
-#client_secret = "..."
 
 # Categories, each category has a code, a file and a list of subcategories
 [cat.resistor]
